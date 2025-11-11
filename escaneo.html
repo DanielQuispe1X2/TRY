@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SkinGuard • Escaneo</title>
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    body {
+      background-color: #0f172a;
+      color: #f8fafc;
+      font-family: 'Segoe UI', sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      padding: 24px;
+    }
+
+    /* 🩺 Tarjeta principal */
+    .scan-card {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 16px;
+      padding: 24px 28px;
+      width: 100%;
+      max-width: 420px;
+      text-align: center;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+      backdrop-filter: blur(10px);
+    }
+
+    /* 💎 Tarjeta del título */
+    .title-box {
+      background: linear-gradient(90deg, rgba(43,183,166,0.25), rgba(46,158,246,0.25));
+      border: 1px solid rgba(255,255,255,0.15);
+      color: #ffffff;
+      font-weight: 700;
+      font-size: 1.3rem;
+      border-radius: 12px;
+      padding: 12px 18px;
+      margin-bottom: 20px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      letter-spacing: 0.5px;
+      user-select: none;
+    }
+
+    .title-box span.icon {
+      margin-right: 8px;
+      font-size: 1.4rem;
+    }
+
+    /* 📸 Contenedor de cámara responsive */
+    .camera-container {
+      position: relative;
+      margin: 0 auto;
+      width: min(224px, 80vw);
+      aspect-ratio: 1 / 1;
+      border-radius: 0px;
+      border: 2px solid rgba(148, 163, 184, 0.4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background-color: rgba(30, 41, 59, 0.6);
+      overflow: hidden;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+    }
+
+    video, img {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      border-radius: 0px;
+    }
+
+    .inner-circle { display: none; }
+
+    /* 🧠 Panel de consejos */
+    .tips {
+      background: rgba(255, 255, 255, 0.08);
+      border-radius: 10px;
+      padding: 14px 16px;
+      margin-top: 20px;
+      width: 100%;
+      font-size: 0.9rem;
+      color: #cbd5e1;
+      box-shadow: 0 6px 16px rgba(0,0,0,0.15);
+      text-align: left;
+    }
+
+    .tips b { color: #facc15; }
+
+    /* 🧩 Botones */
+    .btn {
+      width: 100%;
+      padding: 12px;
+      border-radius: 10px;
+      border: none;
+      margin-top: 14px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease-in-out;
+    }
+
+    .btn-primary {
+      background: linear-gradient(90deg, #2563eb, #2bb7a6);
+      color: #ffffff;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+    }
+
+    .btn-primary:hover {
+      background: linear-gradient(90deg, #1e40af, #249c8b);
+    }
+
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.1);
+      color: #f8fafc;
+    }
+
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.2);
+    }
+
+    #photoPreview {
+      display: none;
+    }
+
+    @media (max-width: 480px) {
+      .scan-card {
+        padding: 20px;
+        width: 90%;
+      }
+      .title-box {
+        font-size: 1.1rem;
+        padding: 10px 14px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="scan-card">
+    <div class="title-box">
+      <span class="icon">📸</span> Capturar Imagen
+    </div>
+
+    <div class="camera-container">
+      <video id="cameraFeed" autoplay playsinline></video>
+      <img id="photoPreview" alt="Captura previa">
+      <div class="inner-circle"></div>
+    </div>
+
+    <div class="tips">
+      <b>💡 Consejos para mejor resultado:</b><br>
+      • Iluminación natural uniforme 🌤️<br>
+      • Centrar la lesión en el recuadro 🎯<br>
+      • Mantener cámara estable 🤳
+    </div>
+
+    <button id="captureBtn" class="btn btn-primary">📷 Capturar Lesión</button>
+    <button id="uploadBtn" class="btn btn-secondary">⬆️ Subir desde Galería</button>
+    <input type="file" id="galleryInput" accept="image/*" style="display:none" />
+  </div>
+
+  <script>
+    const video = document.getElementById("cameraFeed");
+    const photoPreview = document.getElementById("photoPreview");
+    const captureBtn = document.getElementById("captureBtn");
+    const uploadBtn = document.getElementById("uploadBtn");
+    const galleryInput = document.getElementById("galleryInput");
+
+    // 🟢 Activar cámara
+    async function initCamera() {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+        video.srcObject = stream;
+      } catch (err) {
+        alert("No se pudo acceder a la cámara. Verifica permisos.");
+        console.error("Error cámara:", err);
+      }
+    }
+
+    // 📸 Capturar imagen → cambia a “Analizar Lesión”
+    captureBtn.addEventListener("click", () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const imageData = canvas.toDataURL("image/png");
+
+      photoPreview.src = imageData;
+      photoPreview.style.display = "block";
+      video.style.display = "none";
+
+      // Cambiar botón principal a "Analizar Lesión"
+      captureBtn.textContent = "🔍 Analizar Lesión";
+      captureBtn.onclick = () => analizarImagen(imageData);
+    });
+
+    // 🖼️ Subir desde galería → cambia a “Analizar Lesión”
+    uploadBtn.addEventListener("click", () => galleryInput.click());
+    galleryInput.addEventListener("change", (event) => {
+      const file = event.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = e => {
+          photoPreview.src = e.target.result;
+          photoPreview.style.display = "block";
+          video.style.display = "none";
+
+          captureBtn.textContent = "🔄 Volver a Cámara";
+          captureBtn.onclick = () => location.reload();
+
+          uploadBtn.textContent = "🔍 Analizar Lesión";
+          uploadBtn.onclick = () => analizarImagen(e.target.result);
+        };
+        reader.readAsDataURL(file);
+      }
+    });
+
+    // 🧠 Simulación de análisis (puedes conectar luego con tu modelo IA)
+    function analizarImagen(dataURL) {
+      console.log("Analizando imagen...");
+      alert("🧠 Analizando imagen...\n(Conectar con modelo IA en siguiente paso)");
+    }
+
+    initCamera();
+  </script>
+</body>
+</html>

@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SkinGuard - Detección de Melanomas</title>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.3/dist/umd/supabase.min.js"></script>
+  <link rel="stylesheet" href="style.css" />
+</head>
+
+<body>
+  <script>
+    if (localStorage.getItem("isLoggedIn") !== "true") {
+      window.location.href = "login.html";
+    }
+  </script>
+
+  <div class="status-indicator status-loading" id="modelStatus">
+    <span class="loading"></span> Cargando modelo...
+  </div>
+
+  <div class="container">
+    <img src="logo.png" alt="Logo SkinGuard" class="main-logo" />
+    <h1>SkinGuard: Detección de Melanomas</h1>
+    <p class="subtitle">
+      Sube una imagen para realizar el análisis de lesiones cutáneas.
+    </p>
+
+    <div class="upload-section">
+      <div class="upload-buttons">
+        <button class="btn btn-primary" onclick="triggerFileInput()" id="uploadBtn" disabled>
+          📁 Subir Imagen
+        </button>
+        <input type="file" id="imageInput" class="file-input" accept="image/*" onchange="handleImageUpload(event)">
+      </div>
+    </div>
+
+    <div class="preview-section">
+      <div class="image-container" id="imageContainer">
+        <div class="placeholder-text" id="placeholderText">
+          Selecciona una imagen para iniciar el análisis
+        </div>
+        <img id="previewImage" class="hidden" alt="Vista previa" />
+      </div>
+    </div>
+
+    <div class="result-section">
+      <h2 class="result-title">Resultado del Análisis</h2>
+      <div class="prediction-result result-waiting" id="predictionResult">
+        Esperando imagen para analizar...
+      </div>
+      <div class="confidence-bar hidden" id="confidenceBar">
+        <div class="confidence-fill" id="confidenceFill"></div>
+      </div>
+    </div>
+
+    <!-- 🔒 Cerrar sesión -->
+    <button id="logoutBtn" class="btn btn-secondary" style="margin-top: 20px; width: 100%;">
+      🔒 Cerrar Sesión
+    </button>
+
+    <!-- 📍 Obtener ubicación -->
+    <button id="btnUbicacion" class="btn btn-primary" style="margin-top: 10px; width: 100%;">
+      📍 Obtener Ubicación
+    </button>
+
+    <!-- ☀️ Ver índice UV -->
+    <button id="btnIndiceUV" class="btn btn-primary" style="margin-top: 10px; width: 100%;">
+      ☀️ Ver Índice UV
+    </button>
+
+    <!-- 📊 Dashboard -->
+    <button id="btnDashboard" class="btn btn-primary" style="margin-top: 10px; width: 100%;">
+      📊 Dashboard
+    </button>
+
+    <!-- 🗺️ Mapa -->
+    <button id="btnMapa" class="btn btn-primary" style="margin-top: 10px; width: 100%;">
+      🗺️ Mapa
+    </button>
+
+    <!-- 🧱 Vista definitiva -->
+    <button id="btnDefinitivo" class="btn btn-primary" style="margin-top: 10px; width: 100%;">
+      🧱 Vista Definitiva
+    </button>
+  </div>
+
+  <script src="script.js"></script>
+
+  <script>
+    // Cerrar sesión
+    document.getElementById("logoutBtn").addEventListener("click", () => {
+      localStorage.clear();
+      window.location.href = "login.html";
+    });
+
+    // Redirecciones
+    document.getElementById("btnUbicacion").addEventListener("click", () => {
+      window.location.href = "ubicacion.html";
+    });
+
+    document.getElementById("btnIndiceUV").addEventListener("click", () => {
+      window.location.href = "indiceuv.html";
+    });
+
+    document.getElementById("btnDashboard").addEventListener("click", () => {
+      window.location.href = "dashboard.html";
+    });
+
+    document.getElementById("btnMapa").addEventListener("click", () => {
+      window.location.href = "mapa.html";
+    });
+
+    document.getElementById("btnDefinitivo").addEventListener("click", () => {
+      window.location.href = "definitivo.html";
+    });
+  </script>
+
+</body>
+</html>

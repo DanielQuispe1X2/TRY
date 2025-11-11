@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>SkinGuard • Inicio (Definitivo)</title>
+  <link rel="stylesheet" href="style.css" />
+
+  <!-- Supabase -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.3/dist/umd/supabase.min.js"></script>
+
+  <style>
+  .top-cards { 
+    display: flex; 
+    gap: 16px; 
+    margin-bottom: 18px; 
+    flex-wrap: wrap; 
+  }
+
+  .card { 
+    background: #fff; 
+    border-radius: 12px; 
+    padding: 18px; 
+    box-shadow: 0 8px 20px rgba(0,0,0,0.06); 
+    flex: 1; 
+    min-width: 160px; 
+  }
+
+  .card h3 { 
+    font-size: 1.6rem; 
+    color: #0f172a; 
+    margin-bottom: 6px; 
+  }
+
+  .card p { 
+    color: #64748b; 
+    margin: 0; 
+  }
+
+  .big-cta { 
+    display: flex; 
+    gap: 12px; 
+    margin: 14px 0; 
+  }
+
+  .cta { 
+    flex: 1; 
+    padding: 18px 20px; 
+    border-radius: 12px; 
+    color: #fff; 
+    font-weight: 700; 
+    display: flex; 
+    align-items: center; 
+    justify-content: space-between; 
+    cursor: pointer; 
+  }
+
+  .cta.scan { background: linear-gradient(90deg,#2bb7a6,#2e9ef6); }
+  .cta.cita { background: linear-gradient(90deg,#6f6ff0,#a14de8); }
+
+  .activity { margin-top: 18px; }
+
+  .activity .item { 
+    background: #fff; 
+    padding: 12px; 
+    border-radius: 10px; 
+    box-shadow: 0 6px 16px rgba(0,0,0,0.06); 
+    margin-bottom: 10px; 
+    display: flex; 
+    justify-content: space-between; 
+    align-items: center; 
+  }
+
+  .result-benigno { border-left: 5px solid #4ade80; }
+  .result-maligno { border-left: 5px solid #f87171; }
+
+  /* 🔧 CONTENEDOR DE UV + MAPA */
+  .uv-map-row { 
+    display: flex; 
+    gap: 16px; 
+    margin-top: 18px; 
+    flex-wrap: wrap;
+    align-items: stretch; /* 🔹 fuerza igual altura entre columnas */
+  }
+
+  .uv-column { 
+    flex: 1; 
+    min-width: 300px; 
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+  }
+
+  .uv-column:last-child {
+    display: flex;
+    flex-direction: column;
+    justify-content: stretch; /* 🔹 asegura que el mapa se estire igual */
+  }
+
+  #map { 
+    height: 100%;
+    min-height: 440px; /* 🔹 ajusta según el contenido de la izquierda */
+    border-radius: 12px; 
+    overflow: hidden; 
+  }
+
+  #uvCardSmall { 
+    padding: 16px; 
+    background: #fff; 
+    border-radius: 12px; 
+    box-shadow: 0 6px 16px rgba(0,0,0,0.06); 
+  }
+
+  #recoCard { 
+    padding: 16px; 
+    background: #fff; 
+    border-radius: 12px; 
+    box-shadow: 0 6px 16px rgba(0,0,0,0.06); 
+    margin-top: 14px; 
+    display: none; 
+  }
+
+  .muted { 
+    color: #6b7280; 
+    font-size: 0.95rem; 
+  }
+
+  @media (max-width: 900px) { 
+    .uv-map-row { flex-direction: column; }
+    #map { min-height: 320px; } /* 🔹 altura menor para pantallas móviles */
+  }
+</style>
+
+</head>
+<body>
+  <div class="container">
+
+    <!-- Header -->
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <img src="logo.png" alt="Logo" style="width:52px;border-radius:10px;">
+        <div>
+          <h1 style="font-size:1.25rem;margin-bottom:4px;">SkinGuard</h1>
+          <div class="muted" id="userGreeting">Cargando usuario...</div>
+        </div>
+      </div>
+      <button id="btnDefLogout" class="btn btn-secondary" style="padding:10px 14px">Cerrar Sesión</button>
+    </div>
+
+    <!-- Top cards -->
+    <div class="top-cards">
+      <div class="card"><h3 id="countEscaneos">0</h3><p>Escaneos</p></div>
+      <div class="card"><h3 id="countCitas">0</h3><p>Citas agendadas</p></div>
+      <div class="card"><h3 id="nextCitaText">—</h3><p>Próxima cita</p></div>
+    </div>
+
+    <!-- UV Banner -->
+    <div style="background:#fff3cd;padding:12px;border-radius:10px;border-left:4px solid #f59e0b;margin-bottom:12px;">
+      <div id="uvWarningText"><strong>☀️ Índice UV:</strong> Consultando...</div>
+    </div>
+
+    <!-- CTA buttons -->
+    <div class="big-cta">
+      <div class="cta scan" id="btnNewScan">
+        <div><div style="font-size:1.05rem;">Nuevo Escaneo</div><div style="font-size:.9rem;opacity:.9">Analiza una lesión cutánea</div></div>
+        <div style="font-size:22px;">📷</div>
+      </div>
+      <div class="cta cita" id="btnReserve">
+        <div><div style="font-size:1.05rem;">Reservar Cita</div><div style="font-size:.9rem;opacity:.9">Selecciona clínica y doctor</div></div>
+        <div style="font-size:22px;">🗓️</div>
+      </div>
+    </div>
+
+    <!-- Actividad reciente -->
+    <div class="activity">
+      <h3 style="margin-bottom:10px;">Actividad Reciente</h3>
+      <div id="recentList"></div>
+    </div>
+
+    <!-- 🌍 Google Maps + UV -->
+    <div class="uv-map-row">
+      <div class="uv-column">
+        <div id="uvCardSmall">
+          <h4 style="margin:0 0 8px 0;">Índice UV en Ubicación Seleccionada</h4>
+          <div id="uvSmallValue" style="font-size:1.4rem;font-weight:700">—</div>
+          <div id="uvSmallAdvice" class="muted" style="margin-top:8px;">Selecciona una ubicación en el mapa</div>
+          <div id="uvSmallMeta" class="muted" style="margin-top:8px;">—</div>
+        </div>
+
+        <!-- 🧠 Tarjeta de Recomendaciones -->
+        <div id="recoCard">
+          <h4 style="margin-bottom:6px;">🧠 Recomendaciones Personalizadas</h4>
+          <div id="recoContent" class="muted" style="line-height:1.5;"></div>
+        </div>
+      </div>
+
+      <div class="uv-column">
+        <input id="searchBox" type="text" placeholder="🔍 Buscar ubicación..." style="width:100%;padding:10px;border-radius:8px;margin-bottom:8px;border:1px solid #ccc;">
+        <div id="map"></div>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    /***** CONFIGURACIÓN *****/
+    const SUPABASE_URL = "https://wstqsqgktlbdefugtpdv.supabase.co";
+    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndzdHFzcWdrdGxiZGVmdWd0cGR2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg2ODUyNTQsImV4cCI6MjA3NDI2MTI1NH0.ArkLINOc0adJf8bFvf6W-HC-_kGucp15Lyw28ivmc1w";
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    /***** FLUJO PRINCIPAL *****/
+    let user = null;
+
+    (async function init(){
+      if (localStorage.getItem("isLoggedIn") !== "true") {
+        window.location.href = "login.html"; return;
+      }
+
+      const userEmail = localStorage.getItem("userEmail");
+      document.getElementById("userGreeting").textContent = userEmail;
+
+      const { data } = await supabase.from("usuarios").select("*").eq("email", userEmail).maybeSingle();
+      user = data;
+      if (!user) { alert("Usuario no encontrado"); return; }
+
+      document.getElementById("countEscaneos").textContent = user.numero_escaneos ?? 0;
+      document.getElementById("countCitas").textContent = user.numero_citas ?? 0;
+      document.getElementById("nextCitaText").textContent = "Aún no has agendado una cita";
+
+      await cargarUltimosRegistros(user.id, user.ultimo_resultado, user.ultima_confianza);
+      consultarUVLocal();
+
+      document.getElementById("btnNewScan").addEventListener("click", () => window.location.href = "escaneo.html");
+      document.getElementById("btnReserve").addEventListener("click", () => alert("Módulo de citas aún no activo"));
+      document.getElementById("btnDefLogout").addEventListener("click", () => { localStorage.clear(); window.location.href="login.html"; });
+    })();
+
+    /***** ESCANEOS Y ACTIVIDAD *****/
+    async function cargarUltimosRegistros(userId, ultimoResultado, ultimaConfianza){
+      const { data: escaneo } = await supabase
+        .from("escaneos")
+        .select("*")
+        .eq("usuario_id", userId)
+        .order("fecha", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      const recent = document.getElementById("recentList");
+      recent.innerHTML = "";
+
+      const resultado = escaneo?.resultado || ultimoResultado || "Sin datos";
+      let confianza = escaneo?.confianza || ultimaConfianza || 0;
+      const esMaligno = resultado.toLowerCase() === "maligno";
+      if (!esMaligno) confianza = 100 - confianza;
+
+      let fecha;
+      if (escaneo?.fecha) {
+        const utcDate = new Date(escaneo.fecha);
+        const localDate = new Date(utcDate.getTime() - (5 * 60 * 60 * 1000));
+        fecha = localDate.toLocaleString("es-PE", { dateStyle: "short", timeStyle: "short", hour12: false });
+      } else fecha = "Fecha no disponible";
+
+      const icono = esMaligno ? "⚠️" : "✅";
+      const clase = esMaligno ? "result-maligno" : "result-benigno";
+
+      recent.innerHTML += `
+        <div class="item ${clase}">
+          <div>
+            <strong>Último Escaneo:</strong> ${icono} ${resultado}<br>
+            <span class="muted">Confianza: ${parseFloat(confianza).toFixed(2)}%</span><br>
+            <span class="muted">Fecha: ${fecha}</span>
+          </div>
+        </div>
+      `;
+
+      // Mostrar recomendaciones personalizadas
+      mostrarRecomendaciones(resultado, confianza);
+    }
+
+    /***** 🧠 Recomendaciones según resultado *****/
+    function mostrarRecomendaciones(ultimoResultado, ultimaConfianza) {
+      const card = document.getElementById("recoCard");
+      const content = document.getElementById("recoContent");
+      if (!ultimoResultado || ultimaConfianza == null) {
+        card.style.display = "none";
+        return;
+      }
+
+      const confianza = parseFloat(ultimaConfianza);
+      let mensaje = "";
+      let colorFondo = "#fff";
+
+      if (ultimoResultado.toLowerCase() === "benigno") {
+        colorFondo = "#e8f5e9";
+        mensaje = `
+          🌿 <b>Resultado Benigno</b> (Conf. ${confianza.toFixed(1)}%)<br>
+          ¡Excelente! Tu piel no presenta señales de riesgo. 😌<br>
+          Mantén tus revisiones mensuales y usa protector solar SPF 30+ al salir ☀️.<br><br>
+        `;
+        if (confianza > 90) mensaje += "✅ Tu resultado es muy confiable. Continúa con tus cuidados habituales.";
+        else if (confianza >= 70) mensaje += "🔁 Todo parece bien, pero repite un escaneo en unos días por seguridad.";
+        else mensaje += "⚠️ El resultado es benigno, aunque con baja confianza. Te sugerimos repetir el escaneo con mejor iluminación.";
+      } 
+      else if (ultimoResultado.toLowerCase() === "maligno") {
+        colorFondo = "#fee2e2";
+        mensaje = `
+          🚨 <b>Resultado Maligno</b> (Conf. ${confianza.toFixed(1)}%)<br>
+          Nuestra IA detecta signos de posible riesgo. 🩺<br>
+          Agenda una cita dermatológica lo antes posible y evita exposición solar directa. 👕<br><br>
+        `;
+        if (confianza > 90) mensaje += "⚠️ Probabilidad alta: acude a revisión médica prioritaria.";
+        else if (confianza >= 70) mensaje += "🩺 Puede existir riesgo: repite el escaneo y consulta a un especialista.";
+        else mensaje += "🔎 Resultado incierto: realiza un nuevo análisis con buena iluminación.";
+      }
+
+      card.style.display = "block";
+      card.style.background = colorFondo;
+      content.innerHTML = mensaje;
+    }
+
+    /***** ÍNDICE UV *****/
+    function uvAdviceText(uv) {
+      if (uv <= 2) return { title:"Bajo", short:"☘️ Riesgo mínimo", long:"Puedes disfrutar al aire libre con tranquilidad. Usa protector solar SPF 15+ si permanecerás mucho tiempo al sol. 👒", color:"#00c851", icon:"☘️" };
+      if (uv <= 5) return { title:"Moderado", short:"🕶️ Riesgo moderado", long:"Usa SPF 30+, gorra y gafas UV. Evita exposición 11–15h. 🧢🕶️", color:"#fbbf24", icon:"🕶️" };
+      if (uv <= 7) return { title:"Alto", short:"🧴 Riesgo alto", long:"Usa SPF 50+, ropa ligera y sombra. Evita sol directo más de 30 min. ☀️", color:"#fb923c", icon:"🧴" };
+      if (uv <= 10) return { title:"Muy alto", short:"☀️ Muy alto", long:"Quemaduras en <15 min. Evita actividades al sol. SPF 50+ y ropa UV. ⚠️💧", color:"#f87171", icon:"☀️" };
+      return { title:"Extremo", short:"🔥 Extremo", long:"Evita sol directo. Usa protección total: SPF 50+, sombrero y gafas UV. 🚫🌞", color:"#8b5cf6", icon:"🔥" };
+    }
+
+    async function consultarUVLocal(){
+      if (!navigator.geolocation) return;
+      navigator.geolocation.getCurrentPosition(async (pos)=>{
+        try {
+          const { latitude, longitude } = pos.coords;
+          await consultarClimaGoogle(latitude, longitude);
+        } catch(e){
+          document.getElementById("uvWarningText").textContent = "Error al consultar índice UV.";
+        }
+      });
+    }
+
+    /***** GOOGLE MAPS + GOOGLE WEATHER API *****/
+    let map, marker, autocomplete, currentCircle;
+    function initMap() {
+      const peruCenter = { lat: -9.19, lng: -75.0152 };
+      map = new google.maps.Map(document.getElementById("map"), { center: peruCenter, zoom: 6 });
+
+      const input = document.getElementById("searchBox");
+      autocomplete = new google.maps.places.Autocomplete(input);
+      autocomplete.bindTo("bounds", map);
+
+      marker = new google.maps.Marker({ map, draggable: true, visible: false });
+
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(async (pos) => {
+          const { latitude, longitude } = pos.coords;
+          const position = { lat: latitude, lng: longitude };
+          map.setCenter(position);
+          map.setZoom(11);
+          currentCircle = new google.maps.Circle({
+            strokeColor: "#1E90FF", strokeOpacity: 0.8, strokeWeight: 2,
+            fillColor: "#1E90FF", fillOpacity: 0.3, map, center: position, radius: 300,
+          });
+          new google.maps.Marker({
+            position, map, icon: { path: google.maps.SymbolPath.CIRCLE, scale: 6, fillColor: "#1E90FF", fillOpacity: 1, strokeWeight: 2, strokeColor: "#fff" },
+          });
+          await consultarClimaGoogle(latitude, longitude);
+        });
+      }
+
+      autocomplete.addListener("place_changed", async () => {
+        const place = autocomplete.getPlace();
+        if (!place.geometry) return;
+        map.setCenter(place.geometry.location);
+        map.setZoom(10);
+        marker.setPosition(place.geometry.location);
+        marker.setVisible(true);
+        await consultarClimaGoogle(place.geometry.location.lat(), place.geometry.location.lng());
+      });
+
+      map.addListener("click", async (event) => {
+        const lat = event.latLng.lat();
+        const lng = event.latLng.lng();
+        marker.setPosition(event.latLng);
+        marker.setVisible(true);
+        map.panTo(event.latLng);
+        await consultarClimaGoogle(lat, lng);
+      });
+    }
+
+    async function consultarClimaGoogle(lat, lng) {
+      const API_KEY = "AIzaSyBlwIdORlP_f6EAr1L_bpMBaIylsNmHUqE";
+      const url = `https://weather.googleapis.com/v1/currentConditions:lookup?key=${API_KEY}&location.latitude=${lat}&location.longitude=${lng}`;
+      try {
+        const res = await fetch(url);
+        const data = await res.json();
+        const clima = data?.weatherCondition?.description?.text || "Sin datos";
+        const temperatura = data?.temperature?.degrees ?? 0;
+        const humedad = data?.relativeHumidity ?? 0;
+        const uv = data?.uvIndex ?? 0;
+        const hora = data?.currentTime ? new Date(data.currentTime).toLocaleTimeString("es-PE") : "—";
+        const adv = uvAdviceText(uv);
+        document.getElementById("uvSmallValue").textContent = `UV ${uv}`;
+        document.getElementById("uvSmallAdvice").innerHTML = `<b>${adv.icon} ${adv.title}</b> — ${adv.short}<br>🌡️ ${temperatura.toFixed(1)} °C • 💧 ${humedad}%<br>☁️ ${clima}`;
+        document.getElementById("uvSmallMeta").textContent = `Actualizado: ${hora}`;
+        document.getElementById("uvWarningText").innerHTML = `<strong>${adv.icon} Nivel ${adv.title} (${uv}):</strong> ${adv.long}`;
+      } catch (err) {
+        console.error("Error al obtener clima:", err);
+        document.getElementById("uvSmallAdvice").textContent = "No se pudo obtener datos del clima.";
+      }
+    }
+  </script>
+
+  <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCNwqvdDAk95m-k2d-lW7e3Gd0j28AzYU0&libraries=places&callback=initMap"></script>
+</body>
+</html>

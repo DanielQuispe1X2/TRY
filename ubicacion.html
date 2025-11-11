@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Prueba de Ubicación - SkinGuard</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body class="login-body">
+  <div class="login-container">
+    <h2>📍 Prueba de Ubicación</h2>
+    <p id="estado">Presiona el botón para obtener tu ubicación actual.</p>
+    <button id="getLocationBtn" class="btn btn-primary">Obtener Ubicación</button>
+
+    <div id="resultado" style="margin-top:20px; text-align:center;"></div>
+
+    <button id="volverBtn" class="btn btn-secondary" style="margin-top:30px;">⬅️ Volver al Inicio</button>
+  </div>
+
+  <script>
+    const estado = document.getElementById("estado");
+    const resultado = document.getElementById("resultado");
+
+    document.getElementById("getLocationBtn").addEventListener("click", () => {
+      if (!navigator.geolocation) {
+        estado.textContent = "Tu navegador no soporta la geolocalización.";
+        return;
+      }
+
+      estado.textContent = "Obteniendo coordenadas, espera un momento...";
+
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const lat = pos.coords.latitude.toFixed(6);
+          const lon = pos.coords.longitude.toFixed(6);
+          estado.textContent = "Ubicación obtenida correctamente ✅";
+          resultado.innerHTML = `
+            <p><strong>Latitud:</strong> ${lat}</p>
+            <p><strong>Longitud:</strong> ${lon}</p>
+          `;
+        },
+        (err) => {
+          switch (err.code) {
+            case err.PERMISSION_DENIED:
+              estado.textContent = "Permiso denegado. Activa la ubicación.";
+              break;
+            case err.POSITION_UNAVAILABLE:
+              estado.textContent = "Información de ubicación no disponible.";
+              break;
+            case err.TIMEOUT:
+              estado.textContent = "Tiempo de espera agotado.";
+              break;
+            default:
+              estado.textContent = "Error desconocido al obtener la ubicación.";
+          }
+        }
+      );
+    });
+
+    // Botón para volver al inicio
+    document.getElementById("volverBtn").addEventListener("click", () => {
+      window.location.href = "index.html";
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mapa UV - SkinGuard Perú</title>
+  <link rel="stylesheet" href="style.css" />
+  <!-- Leaflet -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <!-- Heatmap plugin -->
+  <script src="https://unpkg.com/leaflet.heat/dist/leaflet-heat.js"></script>
+  <style>
+    #map {
+      height: 80vh;
+      width: 100%;
+      border-radius: 15px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+      margin-top: 20px;
+    }
+    .info-box {
+      text-align: center;
+      background: #fff;
+      padding: 10px;
+      border-radius: 10px;
+      margin-top: 10px;
+      box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+    }
+  </style>
+</head>
+<body class="login-body">
+  <div class="login-container">
+    <h2>🗺️ Mapa de Radiación UV - Perú</h2>
+    <p id="estado">Obteniendo datos UV en tiempo real...</p>
+
+    <div id="map"></div>
+    <div id="info" class="info-box">Cargando...</div>
+
+    <button id="volverBtn" class="btn btn-secondary" style="margin-top: 20px; width: 100%;">
+      ⬅️ Volver al Inicio
+    </button>
+  </div>
+
+  <script>
+    const OPENUV_KEY = "openuv-5d1bjjrmhrfa0nx-io";
+
+    const ciudades = [
+      { nombre: "Lima", lat: -12.0464, lng: -77.0428 },
+      { nombre: "Arequipa", lat: -16.409, lng: -71.537 },
+      { nombre: "Cusco", lat: -13.532, lng: -71.967 },
+      { nombre: "Trujillo", lat: -8.111, lng: -79.028 },
+      { nombre: "Chiclayo", lat: -6.773, lng: -79.844 },
+      { nombre: "Piura", lat: -5.194, lng: -80.632 },
+      { nombre: "Iquitos", lat: -3.743, lng: -73.251 },
+      { nombre: "Puno", lat: -15.842, lng: -70.021 },
+      { nombre: "Tacna", lat: -18.014, lng: -70.251 },
+      { nombre: "Huancayo", lat: -12.065, lng: -75.204 }
+    ];
+
+    const estadoEl = document.getElementById("estado");
+    const infoEl = document.getElementById("info");
+
+    document.getElementById("volverBtn").addEventListener("click", () => {
+      window.location.href = "index.html";
+    });
+
+    // Inicializar mapa centrado en Perú
+    const map = L.map("map").setView([-9.2, -75.0], 5);
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      attribution: '© OpenStreetMap',
+    }).addTo(map);
+
+    const heatLayer = L.heatLayer([], {
+      radius: 35,
+      blur: 25,
+      maxZoom: 8,
+      max: 1.0,
+      gradient: {
+        0.0: "#00ff88", // bajo
+        0.3: "#ffff55", // moderado
+        0.6: "#ff914d", // alto
+        0.8: "#ff0000", // muy alto
+        1.0: "#8b00ff"  // extremo
+      }
+    }).addTo(map);
+
+    async function obtenerUV(lat, lng) {
+      try {
+        const res = await fetch(`https://api.openuv.io/api/v1/uv?lat=${lat}&lng=${lng}&alt=100`, {
+          headers: { "x-access-token": OPENUV_KEY }
+        });
+        const data = await res.json();
+        return data?.result?.uv || 0;
+      } catch (e) {
+        console.error("Error al obtener UV:", e);
+        return 0;
+      }
+    }
+
+    async function cargarMapaUV() {
+      estadoEl.textContent = "📡 Consultando OpenUV para 10 ciudades...";
+      const puntos = [];
+      let total = 0;
+
+      for (const ciudad of ciudades) {
+        const uv = await obtenerUV(ciudad.lat, ciudad.lng);
+        total += uv;
+        puntos.push([ciudad.lat, ciudad.lng, uv / 15]); // Normalizado para heatmap
+        L.circleMarker([ciudad.lat, ciudad.lng], {
+          radius: 6,
+          fillColor: uvColor(uv),
+          color: "#333",
+          weight: 1,
+          fillOpacity: 0.9
+        })
+        .addTo(map)
+        .bindPopup(`<strong>${ciudad.nombre}</strong><br>Índice UV: <b>${uv.toFixed(2)}</b><br>${recomendacionUV(uv)}`);
+      }
+
+      heatLayer.setLatLngs(puntos);
+      const promedio = (total / ciudades.length).toFixed(2);
+      infoEl.innerHTML = `☀️ <b>Promedio nacional UV:</b> ${promedio}<br>${recomendacionUV(promedio)}`;
+      estadoEl.textContent = "✅ Mapa de radiación actualizado en tiempo real.";
+
+      // Mostrar ubicación actual
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(pos => {
+          const { latitude, longitude } = pos.coords;
+          const marker = L.marker([latitude, longitude]).addTo(map);
+          marker.bindPopup("📍 Tu ubicación actual").openPopup();
+        });
+      }
+    }
+
+    function uvColor(uv) {
+      if (uv <= 2) return "#00ff88";
+      if (uv <= 5) return "#ffff55";
+      if (uv <= 7) return "#ff914d";
+      if (uv <= 10) return "#ff0000";
+      return "#8b00ff";
+    }
+
+    function recomendacionUV(uv) {
+      if (uv <= 2) return "☘️ Riesgo bajo. Protector SPF 15+.";
+      if (uv <= 5) return "🕶️ Riesgo moderado. Usa SPF 30+, gafas y gorra.";
+      if (uv <= 7) return "🧴 Riesgo alto. SPF 50+, evita sol de 11-15h.";
+      if (uv <= 10) return "☀️ Muy alto. Busca sombra, usa ropa UV.";
+      return "🔥 Extremo. Evita el sol directo, protección total.";
+    }
+
+    cargarMapaUV();
+  </script>
+</body>
+</html>

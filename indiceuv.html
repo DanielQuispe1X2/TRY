@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Prueba de Ubicación y UV - SkinGuard</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+
+<body class="login-body">
+  <div class="login-container">
+    <h2>☀️ Prueba de Ubicación y UV</h2>
+    <p id="estado">Presiona el botón para obtener tu ubicación y el índice UV actual.</p>
+
+    <button id="getLocationBtn" class="btn btn-primary">Obtener Ubicación</button>
+
+    <div id="resultado" style="margin-top: 20px; text-align: center;"></div>
+
+    <button id="volverBtn" class="btn btn-secondary" style="margin-top: 30px;">
+      ⬅️ Volver al Inicio
+    </button>
+  </div>
+
+  <script>
+    const estado = document.getElementById("estado");
+    const resultado = document.getElementById("resultado");
+
+    // ⚙️ Tu API Key personal de OpenUV (la obtienes desde tu cuenta)
+    const OPENUV_KEY = "openuv-5d1bjjrmhrfa0nx-io"; // <--- Reemplázala con tu key real
+
+    // 🧭 Obtener ubicación del usuario
+    document.getElementById("getLocationBtn").addEventListener("click", () => {
+      if (!navigator.geolocation) {
+        estado.textContent = "Tu navegador no soporta geolocalización.";
+        return;
+      }
+
+      estado.textContent = "📡 Obteniendo ubicación...";
+
+      navigator.geolocation.getCurrentPosition(
+        async (pos) => {
+          const lat = pos.coords.latitude.toFixed(6);
+          const lon = pos.coords.longitude.toFixed(6);
+
+          estado.textContent = `Ubicación detectada correctamente ✅`;
+
+          resultado.innerHTML = `
+            <p><strong>Latitud:</strong> ${lat}</p>
+            <p><strong>Longitud:</strong> ${lon}</p>
+            <p>Consultando índice UV...</p>
+          `;
+
+          // 🔆 Llamar a la API de OpenUV
+          try {
+            const response = await fetch(`https://api.openuv.io/api/v1/uv?lat=${lat}&lng=${lon}`, {
+              headers: {
+                "x-access-token": OPENUV_KEY
+              }
+            });
+
+            if (!response.ok) {
+              throw new Error(`Error HTTP ${response.status}`);
+            }
+
+            const data = await response.json();
+            const uv = data.result.uv.toFixed(2);
+            const uvMax = data.result.uv_max.toFixed(2);
+            const uvTime = new Date(data.result.uv_time).toLocaleTimeString();
+
+            resultado.innerHTML = `
+              <p><strong>Latitud:</strong> ${lat}</p>
+              <p><strong>Longitud:</strong> ${lon}</p>
+              <hr>
+              <p><strong>Índice UV actual:</strong> ${uv}</p>
+              <p><strong>Máximo UV hoy:</strong> ${uvMax}</p>
+              <p><small>Actualizado a las ${uvTime}</small></p>
+            `;
+          } catch (err) {
+            console.error("Error al consultar OpenUV:", err);
+            resultado.innerHTML += `<p style="color:red;">⚠️ Error al obtener el índice UV.</p>`;
+          }
+        },
+        (err) => {
+          estado.textContent = "No se pudo obtener la ubicación.";
+          console.error("Error de geolocalización:", err);
+        }
+      );
+    });
+
+    // 🔙 Volver al inicio
+    document.getElementById("volverBtn").addEventListener("click", () => {
+      window.location.href = "index.html";
+    });
+  </script>
+</body>
+</html>
