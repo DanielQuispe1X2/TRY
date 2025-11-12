@@ -307,9 +307,9 @@ galleryInput.addEventListener("change", (event) => {
 
 
 
-    /* ===============================
-       FUNCIÓN DE PREDICCIÓN
-    ================================ */
+        /* ===============================
+      FUNCIÓN DE PREDICCIÓN
+    =============================== */
     async function processImageFromData(base64Data) {
       if (!isModelLoaded) {
         alert("El modelo aún se está cargando.");
@@ -336,7 +336,7 @@ galleryInput.addEventListener("change", (event) => {
 
         console.log(`🧠 Resultado: ${result} | Confianza: ${displayConfidence.toFixed(2)}%`);
 
-        // Actualizar en Supabase
+        // 🟢 Obtener usuario logeado
         const userEmail = localStorage.getItem("userEmail");
         const { data: user, error } = await supabase
           .from("usuarios")
@@ -344,17 +344,16 @@ galleryInput.addEventListener("change", (event) => {
           .eq("email", userEmail)
           .maybeSingle();
 
-        if (!error && user) {
-          await supabase
-            .from("usuarios")
-            .update({
-              ultimo_resultado: result,
-              ultima_confianza: displayConfidence
-            })
-            .eq("id", user.id);
+        if (error || !user) {
+          console.error("❌ No se encontró el usuario en Supabase:", error);
+          alert("Error al identificar al usuario logeado.");
+          return;
         }
 
-        // Mostrar overlay y redirigir
+        // 🧩 Registrar escaneo completo (resultado, confianza y contador)
+        await registrarEscaneo(user.id, result, displayConfidence, user.numero_escaneos);
+
+        // 🌀 Mostrar overlay y redirigir
         overlay.style.display = "flex";
         setTimeout(() => {
           overlay.style.display = "none";
@@ -366,6 +365,44 @@ galleryInput.addEventListener("change", (event) => {
         alert("Ocurrió un error al analizar la imagen.");
       }
     }
+
+    /* ===============================
+      REGISTRAR ESCANEO EN SUPABASE
+    =============================== */
+    async function registrarEscaneo(usuarioId, resultado, confianza, numeroActual) {
+      try {
+        // 1️⃣ Insertar escaneo en tabla 'escaneos'
+        const { error: insertError } = await supabase
+          .from("escaneos")
+          .insert([{ usuario_id: usuarioId, resultado, confianza }]);
+
+        if (insertError) {
+          console.error("Error al insertar escaneo:", insertError);
+          throw new Error("No se pudo registrar el escaneo.");
+        }
+
+        // 2️⃣ Actualizar contador e información del usuario
+        const { error: updateError } = await supabase
+          .from("usuarios")
+          .update({
+            numero_escaneos: (numeroActual ?? 0) + 1,
+            ultimo_resultado: resultado,
+            ultima_confianza: parseFloat(confianza.toFixed(2))
+          })
+          .eq("id", usuarioId);
+
+        if (updateError) {
+          console.error("Error al actualizar usuario:", updateError);
+          throw new Error("No se pudo actualizar datos del usuario.");
+        }
+
+        console.log("✅ Escaneo guardado correctamente en Supabase.");
+
+      } catch (err) {
+        console.error("Error general al registrar el escaneo:", err);
+      }
+    }
+
 
     window.onload = function() {
       loadModel();
