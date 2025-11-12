@@ -1,0 +1,384 @@
+<!DOCTYPE html> 
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SkinGuard • Resultados del Análisis</title>
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.3/dist/umd/supabase.min.js"></script>
+  <style>
+    body {
+      background-color: #f8fafc;
+      color: #0f172a;
+      font-family: 'Segoe UI', sans-serif;
+      margin: 0;
+      padding: 24px;
+      display: flex;
+      justify-content: center;
+    }
+
+    .result-container {
+      width: 100%;
+      max-width: 950px;
+      background: #fff;
+      border-radius: 14px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.08);
+      padding: 30px;
+      animation: fadeIn 0.6s ease-in-out;
+      position: relative;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    h1 {
+      text-align: center;
+      font-size: 1.6rem;
+      color: #1e293b;
+      margin-bottom: 24px;
+    }
+
+    /* ❌ Botón de cerrar (volver al dashboard) */
+    .close-btn {
+      position: absolute;
+      top: 16px;
+      right: 20px;
+      background: rgba(15,23,42,0.05);
+      color: #0f172a;
+      border: none;
+      border-radius: 50%;
+      width: 34px;
+      height: 34px;
+      font-size: 1.2rem;
+      font-weight: bold;
+      cursor: pointer;
+      transition: all 0.2s ease-in-out;
+    }
+    .close-btn:hover {
+      background: rgba(15,23,42,0.15);
+      transform: scale(1.05);
+    }
+
+    /* 🟢 Resultado principal */
+    .main-result {
+      padding: 20px;
+      border-radius: 10px;
+      margin-bottom: 25px;
+      border-left: 6px solid;
+    }
+
+    .benigno {
+      background-color: #dcfce7;
+      border-color: #22c55e;
+      color: #065f46;
+    }
+
+    .maligno {
+      background-color: #fee2e2;
+      border-color: #ef4444;
+      color: #991b1b;
+    }
+
+    .main-result h2 {
+      font-size: 1.3rem;
+      margin: 0;
+    }
+
+    .main-result p {
+      margin-top: 8px;
+      color: #334155;
+    }
+
+    /* 📊 Sección inferior */
+    .info-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-top: 10px;
+    }
+
+    .card {
+      background: #f1f5f9;
+      border-radius: 10px;
+      padding: 18px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+    }
+
+    .card h3 {
+      margin-top: 0;
+      margin-bottom: 10px;
+      font-size: 1rem;
+      color: #1e3a8a;
+    }
+
+    .details-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.95rem;
+    }
+
+    .details-table td {
+      padding: 6px 0;
+      color: #334155;
+    }
+
+    .details-table td:first-child {
+      font-weight: 600;
+      color: #1e293b;
+    }
+
+    /* 💡 Recomendaciones */
+    .recommendations ul {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+
+    .recommendations li {
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+    }
+
+    .recommendations li::before {
+      content: "✔️";
+      margin-right: 8px;
+    }
+
+    /* ⚠️ Advertencia */
+    .warning {
+      background: #fffbea;
+      border-left: 6px solid #facc15;
+      padding: 20px;
+      border-radius: 10px;
+      margin-top: 25px;
+      color: #92400e;
+      font-size: 0.95rem;
+    }
+
+    /* 🔘 Botones */
+    .actions {
+      display: flex;
+      justify-content: center;
+      gap: 16px;
+      margin-top: 25px;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      padding: 12px 22px;
+      border-radius: 10px;
+      border: none;
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.2s ease-in-out;
+    }
+
+    .btn-primary {
+      background: linear-gradient(90deg, #2563eb, #2bb7a6);
+      color: #fff;
+    }
+
+    .btn-primary:hover {
+      background: linear-gradient(90deg, #1e40af, #249c8b);
+    }
+
+    .btn-secondary {
+      background: #f1f5f9;
+      color: #0f172a;
+    }
+
+    .btn-secondary:hover {
+      background: #e2e8f0;
+    }
+
+    @media (max-width: 600px) {
+      .info-grid { grid-template-columns: 1fr; }
+    }
+
+        /* 🧠 Nueva cuadrícula de imagen + resultado */
+    .image-result-grid {
+    display: grid;
+    grid-template-columns: 300px 1fr;
+    gap: 20px;
+    align-items: start;
+    margin-bottom: 25px;
+    }
+
+    .image-card {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10px;
+    }
+
+    .image-card img {
+    width: 100%;
+    border-radius: 8px;
+    object-fit: cover;
+    }
+
+    /* Responsive */
+    @media (max-width: 720px) {
+    .image-result-grid {
+        grid-template-columns: 1fr;
+    }
+    }
+
+  </style>
+</head>
+
+<body>
+  <div class="result-container">
+    <!-- ❌ Botón de cierre -->
+    <button class="close-btn" onclick="window.location.href='definitivo.html'">✖</button>
+
+    <h1>Resultados del Análisis</h1>
+
+    <div class="image-result-grid">
+    <!-- 🖼️ Imagen analizada -->
+    <div class="image-card">
+        <img id="analyzedImage" alt="Imagen analizada" />
+    </div>
+
+    <!-- 🟢 Resultado principal -->
+    <div id="resultCard" class="main-result benigno">
+        <h2 id="resultTitle">✅ Benigno</h2>
+        <p id="confidenceText">Confianza: 98.2%</p>
+        <p id="resultDesc">
+        El análisis indica que la lesión presenta características benignas. 
+        No se detectaron signos preocupantes de malignidad.
+        </p>
+    </div>
+    </div>
+
+    <div class="info-grid">
+      <!-- 🔬 Detalles técnicos -->
+      <div class="card">
+        <h3>📊 Detalles del Análisis</h3>
+        <table class="details-table">
+          <tr><td>Modelo utilizado:</td><td>CNN + YOLOv8</td></tr>
+          <tr><td>Precisión del modelo:</td><td>91.06%</td></tr>
+          <tr><td>AUC:</td><td>0.9453</td></tr>
+          <tr><td>Fecha y hora de análisis:</td><td id="analysisDate">Cargando...</td></tr>
+        </table>
+      </div>
+
+      <!-- 💡 Recomendaciones -->
+      <div class="card recommendations">
+        <h3>💡 Recomendaciones</h3>
+        <ul id="recList">
+          <li>Realiza seguimiento fotográfico cada 3 meses.</li>
+          <li>Usa protector solar SPF 50+ diariamente.</li>
+          <li>Consulta con un dermatólogo si observas cambios.</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- ⚠️ Advertencia -->
+    <div class="warning">
+      ⚠️ <b>Importante:</b> Este análisis es una herramienta de apoyo preventivo.  
+      No sustituye la evaluación médica profesional. Consulta con un dermatólogo para un diagnóstico definitivo.
+    </div>
+
+    <!-- 🔘 Botones -->
+    <div class="actions">
+      <button class="btn btn-primary">📅 Agendar Cita Dermatológica</button>
+      <button class="btn btn-secondary">📄 Descargar Reporte PDF</button>
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", async () => {
+      const userEmail = localStorage.getItem("userEmail");
+      if (!userEmail) return;
+
+      const SUPABASE_URL = "https://wstqsqgktlbdefugtpdv.supabase.co";
+      const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndzdHFzcWdrdGxiZGVmdWd0cGR2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg2ODUyNTQsImV4cCI6MjA3NDI2MTI1NH0.ArkLINOc0adJf8bFvf6W-HC-_kGucp15Lyw28ivmc1w";
+      const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+      const { data: user } = await supabase
+        .from("usuarios")
+        .select("id, ultimo_resultado, ultima_confianza")
+        .eq("email", userEmail)
+        .maybeSingle();
+
+      if (!user) return;
+
+      // 🔹 Obtener último escaneo con la columna 'fecha'
+      const { data: scan } = await supabase
+        .from("escaneos")
+        .select("fecha")
+        .eq("usuario_id", user.id)
+        .order("fecha", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      let analysisDateText = "No registrada";
+      if (scan && scan.fecha) {
+        const analysisDate = new Date(scan.fecha);
+        const localDate = new Date(analysisDate.getTime() - 5 * 60 * 60 * 1000);
+        analysisDateText = localDate.toLocaleDateString("es-ES", {
+          day: "2-digit",
+          month: "short",
+          year: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit"
+        });
+      }
+      document.getElementById("analysisDate").textContent = analysisDateText;
+
+      // Mostrar resultado
+      const result = user.ultimo_resultado || "Benigno";
+      const confidence = user.ultima_confianza ? user.ultima_confianza.toFixed(2) : "0.00";
+      const resultCard = document.getElementById("resultCard");
+      const resultTitle = document.getElementById("resultTitle");
+      const confidenceText = document.getElementById("confidenceText");
+      const resultDesc = document.getElementById("resultDesc");
+      const recList = document.getElementById("recList");
+
+      confidenceText.textContent = `Confianza: ${confidence}%`;
+
+      if (result.toLowerCase() === "maligno") {
+        resultCard.classList.replace("benigno", "maligno");
+        resultTitle.textContent = "⚠️ Posible Melanoma";
+        resultDesc.textContent = "El análisis sugiere características compatibles con melanoma, una lesión potencialmente maligna. Es fundamental realizar una evaluación médica prioritaria con un dermatólogo especializado para confirmar el diagnóstico mediante examen clínico y biopsia histológica, ya que la precisión del diagnóstico definitivo solo puede lograrse con análisis médico presencial.";
+        recList.innerHTML = `
+          <li>Agenda una cita dermatológica de forma inmediata.</li>
+          <li>Evita exposición solar directa hasta la evaluación médica.</li>
+          <li>No apliques tratamientos tópicos sin indicación médica.</li>
+          <li>Consulta con un dermatólogo certificado para biopsia o análisis complementario.</li>
+        `;
+      } else {
+        resultCard.classList.replace("maligno", "benigno");
+        resultTitle.textContent = "✅ Benigno";
+        resultDesc.textContent = "El análisis indica que la lesión presenta características benignas y no se detectaron signos preocupantes de malignidad. Según los patrones visuales y morfológicos analizados, la probabilidad de melanoma es muy baja, por lo que no se requiere una intervención inmediata. Sin embargo, se recomienda mantener vigilancia preventiva: observe la evolución de la lesión, evite la exposición solar excesiva y realice autoexámenes dermatológicos mensuales siguiendo la regla ABCDE (Asimetría, Bordes, Color, Diámetro, Evolución).";
+        recList.innerHTML = `
+          <li>Realiza seguimiento fotográfico cada 3 meses.</li>
+          <li>Usa protector solar SPF 50+ diariamente.</li>
+          <li>Evita camas de bronceado y exposición solar prolongada.</li>
+          <li>Consulta con un dermatólogo si observas cambios en forma, tamaño o color.</li>
+        `;
+      }
+    });
+
+    // Mostrar imagen analizada (si existe en localStorage)
+    const lastImage = localStorage.getItem("lastAnalyzedImage");
+    if (lastImage) {
+    const analyzedImage = document.getElementById("analyzedImage");
+    analyzedImage.src = lastImage;
+    } else {
+    console.warn("⚠️ No se encontró imagen previa en localStorage");
+    }
+
+  </script>
+</body>
+</html>

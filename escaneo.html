@@ -352,7 +352,10 @@ galleryInput.addEventListener("change", (event) => {
 
         // 🧩 Registrar escaneo completo (resultado, confianza y contador)
         await registrarEscaneo(user.id, result, displayConfidence, user.numero_escaneos);
-
+        
+        // Guardar imagen analizada en localStorage para mostrar en resultado.html
+        localStorage.setItem("lastAnalyzedImage", base64Data);
+        
         // 🌀 Mostrar overlay y redirigir
         overlay.style.display = "flex";
         setTimeout(() => {
