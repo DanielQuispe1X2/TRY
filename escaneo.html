@@ -4,6 +4,11 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>SkinGuard • Escaneo</title>
+
+  <!-- Librerías -->
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.3/dist/umd/supabase.min.js"></script>
+
   <link rel="stylesheet" href="style.css" />
   <style>
     body {
@@ -17,7 +22,6 @@
       padding: 24px;
     }
 
-    /* 🩺 Tarjeta principal */
     .scan-card {
       background: rgba(255, 255, 255, 0.05);
       border: 1px solid rgba(255, 255, 255, 0.1);
@@ -30,7 +34,6 @@
       backdrop-filter: blur(10px);
     }
 
-    /* 💎 Tarjeta del título */
     .title-box {
       background: linear-gradient(90deg, rgba(43,183,166,0.25), rgba(46,158,246,0.25));
       border: 1px solid rgba(255,255,255,0.15);
@@ -44,15 +47,9 @@
       align-items: center;
       justify-content: center;
       letter-spacing: 0.5px;
-      user-select: none;
     }
+    .title-box span.icon { margin-right: 8px; font-size: 1.4rem; }
 
-    .title-box span.icon {
-      margin-right: 8px;
-      font-size: 1.4rem;
-    }
-
-    /* 📸 Contenedor de cámara responsive */
     .camera-container {
       position: relative;
       margin: 0 auto;
@@ -76,9 +73,6 @@
       border-radius: 0px;
     }
 
-    .inner-circle { display: none; }
-
-    /* 🧠 Panel de consejos */
     .tips {
       background: rgba(255, 255, 255, 0.08);
       border-radius: 10px;
@@ -91,9 +85,6 @@
       text-align: left;
     }
 
-    .tips b { color: #facc15; }
-
-    /* 🧩 Botones */
     .btn {
       width: 100%;
       padding: 12px;
@@ -111,38 +102,83 @@
       color: #ffffff;
       box-shadow: 0 4px 10px rgba(0,0,0,0.3);
     }
-
-    .btn-primary:hover {
-      background: linear-gradient(90deg, #1e40af, #249c8b);
-    }
+    .btn-primary:hover { background: linear-gradient(90deg, #1e40af, #249c8b); }
 
     .btn-secondary {
       background: rgba(255, 255, 255, 0.1);
       color: #f8fafc;
     }
+    .btn-secondary:hover { background: rgba(255, 255, 255, 0.2); }
 
-    .btn-secondary:hover {
-      background: rgba(255, 255, 255, 0.2);
+    #photoPreview { display: none; }
+
+    /* 🔹 Tarjeta de estado (modelo) pequeña arriba a la derecha */
+    .status-indicator {
+      position: fixed;
+      top: 14px;
+      right: 18px;
+      background: rgba(255, 255, 255, 0.08);
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      text-align: center;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+      backdrop-filter: blur(8px);
+      transition: all 0.3s ease;
     }
+    .status-loading { color: #facc15; }
+    .status-ready { color: #22d3ee; }
+    .status-error { color: #f87171; }
 
-    #photoPreview {
+    /* 🔸 Overlay de análisis */
+    #loadingOverlay {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(15,23,42,0.95);
+      backdrop-filter: blur(8px);
       display: none;
+      justify-content: center;
+      align-items: center;
+      flex-direction: column;
+      z-index: 1000;
+      color: #fff;
+      text-align: center;
     }
+    .spinner {
+      border: 4px solid rgba(255,255,255,0.1);
+      border-top: 4px solid #22d3ee;
+      border-radius: 50%;
+      width: 60px; height: 60px;
+      animation: spin 1s linear infinite;
+      margin-bottom: 20px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
 
-    @media (max-width: 480px) {
-      .scan-card {
-        padding: 20px;
-        width: 90%;
-      }
-      .title-box {
-        font-size: 1.1rem;
-        padding: 10px 14px;
-      }
+    .progress-bar {
+      width: 200px; height: 6px;
+      background: rgba(255,255,255,0.2);
+      border-radius: 4px;
+      overflow: hidden;
+      margin: 14px auto;
     }
+    .progress-bar .fill {
+      width: 0%;
+      height: 100%;
+      background: linear-gradient(90deg,#2563eb,#2bb7a6);
+      animation: fillProgress 3s ease-in-out forwards;
+    }
+    @keyframes fillProgress { to { width: 100%; } }
   </style>
 </head>
 
 <body>
+  <!-- Estado del modelo -->
+  <div id="modelStatus" class="status-indicator status-loading">
+    <span class="loading"></span> Cargando modelo...
+  </div>
+
+  <!-- Tarjeta principal -->
   <div class="scan-card">
     <div class="title-box">
       <span class="icon">📸</span> Capturar Imagen
@@ -151,7 +187,6 @@
     <div class="camera-container">
       <video id="cameraFeed" autoplay playsinline></video>
       <img id="photoPreview" alt="Captura previa">
-      <div class="inner-circle"></div>
     </div>
 
     <div class="tips">
@@ -166,25 +201,65 @@
     <input type="file" id="galleryInput" accept="image/*" style="display:none" />
   </div>
 
+  <!-- Overlay de análisis -->
+  <div id="loadingOverlay">
+    <div class="spinner"></div>
+    <h2>Analizando Imagen</h2>
+    <p>Nuestro modelo de IA está procesando la imagen...</p>
+    <div class="progress-bar"><div class="fill"></div></div>
+  </div>
+
   <script>
+    /* ===============================
+       CONFIGURACIÓN INICIAL
+    ================================ */
+    let model;
+    let isModelLoaded = false;
+
+    const SUPABASE_URL = "https://wstqsqgktlbdefugtpdv.supabase.co";
+    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndzdHFzcWdrdGxiZGVmdWd0cGR2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg2ODUyNTQsImV4cCI6MjA3NDI2MTI1NH0.ArkLINOc0adJf8bFvf6W-HC-_kGucp15Lyw28ivmc1w";
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
     const video = document.getElementById("cameraFeed");
     const photoPreview = document.getElementById("photoPreview");
     const captureBtn = document.getElementById("captureBtn");
     const uploadBtn = document.getElementById("uploadBtn");
     const galleryInput = document.getElementById("galleryInput");
+    const statusEl = document.getElementById("modelStatus");
+    const overlay = document.getElementById("loadingOverlay");
 
-    // 🟢 Activar cámara
+    /* ===============================
+       CARGA DEL MODELO
+    ================================ */
+    async function loadModel() {
+      try {
+        updateStatus("Cargando modelo...", "loading");
+        model = await tf.loadGraphModel("model.json");
+        isModelLoaded = true;
+        updateStatus("Modelo listo ✅", "ready");
+      } catch (error) {
+        console.error("Error al cargar el modelo:", error);
+        updateStatus("Error al cargar modelo", "error");
+      }
+    }
+
+    function updateStatus(msg, type) {
+      statusEl.textContent = msg;
+      statusEl.className = `status-indicator status-${type}`;
+    }
+
+    /* ===============================
+       CÁMARA Y SUBIDA
+    ================================ */
     async function initCamera() {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
         video.srcObject = stream;
       } catch (err) {
         alert("No se pudo acceder a la cámara. Verifica permisos.");
-        console.error("Error cámara:", err);
       }
     }
 
-    // 📸 Capturar imagen → cambia a “Analizar Lesión”
     captureBtn.addEventListener("click", () => {
       const canvas = document.createElement("canvas");
       canvas.width = video.videoWidth;
@@ -197,39 +272,105 @@
       photoPreview.style.display = "block";
       video.style.display = "none";
 
-      // Cambiar botón principal a "Analizar Lesión"
       captureBtn.textContent = "🔍 Analizar Lesión";
-      captureBtn.onclick = () => analizarImagen(imageData);
+      captureBtn.onclick = () => processImageFromData(imageData);
     });
 
-    // 🖼️ Subir desde galería → cambia a “Analizar Lesión”
-    uploadBtn.addEventListener("click", () => galleryInput.click());
-    galleryInput.addEventListener("change", (event) => {
-      const file = event.target.files[0];
-      if (file) {
-        const reader = new FileReader();
-        reader.onload = e => {
-          photoPreview.src = e.target.result;
-          photoPreview.style.display = "block";
-          video.style.display = "none";
+    // ✅ Subir desde galería (versión corregida)
+function openGallery() {
+  galleryInput.click();
+}
+uploadBtn.addEventListener("click", openGallery);
 
-          captureBtn.textContent = "🔄 Volver a Cámara";
-          captureBtn.onclick = () => location.reload();
+galleryInput.addEventListener("change", (event) => {
+  const file = event.target.files[0];
+  if (file) {
+    const reader = new FileReader();
+    reader.onload = e => {
+      photoPreview.src = e.target.result;
+      photoPreview.style.display = "block";
+      video.style.display = "none";
 
-          uploadBtn.textContent = "🔍 Analizar Lesión";
-          uploadBtn.onclick = () => analizarImagen(e.target.result);
-        };
-        reader.readAsDataURL(file);
+      captureBtn.textContent = "🔄 Volver a Cámara";
+      captureBtn.onclick = () => location.reload();
+
+      // 🔹 Eliminar el listener anterior para que NO vuelva a abrir el explorador
+      uploadBtn.removeEventListener("click", openGallery);
+
+      // 🔹 Reasignar nueva función: analizar
+      uploadBtn.textContent = "🔍 Analizar Lesión";
+      uploadBtn.onclick = () => processImageFromData(e.target.result);
+    };
+    reader.readAsDataURL(file);
+  }
+});
+
+
+
+    /* ===============================
+       FUNCIÓN DE PREDICCIÓN
+    ================================ */
+    async function processImageFromData(base64Data) {
+      if (!isModelLoaded) {
+        alert("El modelo aún se está cargando.");
+        return;
       }
-    });
 
-    // 🧠 Simulación de análisis (puedes conectar luego con tu modelo IA)
-    function analizarImagen(dataURL) {
-      console.log("Analizando imagen...");
-      alert("🧠 Analizando imagen...\n(Conectar con modelo IA en siguiente paso)");
+      const img = new Image();
+      img.src = base64Data;
+      await img.decode();
+
+      try {
+        const tensor = tf.browser.fromPixels(img)
+          .resizeNearestNeighbor([224, 224])
+          .toFloat()
+          .div(255.0)
+          .expandDims(0);
+
+        const prediction = await model.predict(tensor);
+        const data = await prediction.data();
+        const confidence = data[1];
+        const isMalignant = confidence > 0.5;
+        const result = isMalignant ? "Maligno" : "Benigno";
+        const displayConfidence = (isMalignant ? confidence : 1 - confidence) * 100;
+
+        console.log(`🧠 Resultado: ${result} | Confianza: ${displayConfidence.toFixed(2)}%`);
+
+        // Actualizar en Supabase
+        const userEmail = localStorage.getItem("userEmail");
+        const { data: user, error } = await supabase
+          .from("usuarios")
+          .select("*")
+          .eq("email", userEmail)
+          .maybeSingle();
+
+        if (!error && user) {
+          await supabase
+            .from("usuarios")
+            .update({
+              ultimo_resultado: result,
+              ultima_confianza: displayConfidence
+            })
+            .eq("id", user.id);
+        }
+
+        // Mostrar overlay y redirigir
+        overlay.style.display = "flex";
+        setTimeout(() => {
+          overlay.style.display = "none";
+          window.location.href = "resultado.html";
+        }, 3500);
+
+      } catch (err) {
+        console.error("Error durante la predicción:", err);
+        alert("Ocurrió un error al analizar la imagen.");
+      }
     }
 
-    initCamera();
+    window.onload = function() {
+      loadModel();
+      initCamera();
+    };
   </script>
 </body>
 </html>
