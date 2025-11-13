@@ -8,6 +8,8 @@ on:
     types: [opened, synchronize, reopened, closed]
     branches:
       - main
+  schedule:
+    - cron: "0 0 * * *"   # Se ejecuta todos los días a la medianoche (00:00 UTC)
 
 jobs:
   build_and_deploy_job:
@@ -44,3 +46,4 @@ jobs:
         with:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_MANGO_BEACH_0223DF30F }}
           action: "close"
+
