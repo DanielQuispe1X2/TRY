@@ -80,7 +80,7 @@
     gap: 16px; 
     margin-top: 18px; 
     flex-wrap: wrap;
-    align-items: stretch; /* 🔹 fuerza igual altura entre columnas */
+    align-items: stretch;
   }
 
   .uv-column { 
@@ -94,12 +94,12 @@
   .uv-column:last-child {
     display: flex;
     flex-direction: column;
-    justify-content: stretch; /* 🔹 asegura que el mapa se estire igual */
+    justify-content: stretch;
   }
 
   #map { 
     height: 100%;
-    min-height: 440px; /* 🔹 ajusta según el contenido de la izquierda */
+    min-height: 440px;
     border-radius: 12px; 
     overflow: hidden; 
   }
@@ -127,12 +127,113 @@
 
   @media (max-width: 900px) { 
     .uv-map-row { flex-direction: column; }
-    #map { min-height: 320px; } /* 🔹 altura menor para pantallas móviles */
+    #map { min-height: 320px; }
   }
-</style>
+
+  /* 🔹 MODAL DE CITA */
+  .modal-overlay {
+    position: fixed;
+    top:0; left:0; right:0; bottom:0;
+    background: rgba(0,0,0,0.4);
+    display:none;
+    justify-content:center;
+    align-items:flex-start;
+    padding-top:40px;
+    z-index:9999;
+  }
+
+  .modal-card {
+    background:#fff;
+    padding:24px;
+    width:380px;
+    border-radius:12px;
+    box-shadow:0 8px 24px rgba(0,0,0,0.15);
+    max-height:90vh;
+    overflow-y:auto;
+  }
+
+  .doctorItem {
+    padding:14px;
+    border-radius:12px;
+    border:1px solid #e2e8f0;
+    margin-bottom:10px;
+    cursor:pointer;
+    background:#fff;
+    display:flex;
+    justify-content:space-between;
+    gap:10px;
+  }
+
+  .doctorItem-left {
+    display:flex;
+    flex-direction:column;
+    gap:2px;
+  }
+
+  .doctorItem.selected {
+    border-color:#22c55e;
+    background:#ecfdf3;
+  }
+
+  .doctorPrice {
+    color:#059669;
+    font-weight:700;
+    white-space:nowrap;
+  }
+
+  .hour-grid {
+    display:grid;
+    grid-template-columns:repeat(3, 1fr);
+    gap:10px;
+    margin-top:8px;
+  }
+
+  .hora-btn {
+    padding:10px;
+    border-radius:8px;
+    border:1px solid #cbd5f5;
+    background:#f9fafb;
+    cursor:pointer;
+    font-size:0.95rem;
+  }
+
+  .hora-btn.selected {
+    background:#2bb7a6;
+    color:#fff;
+    border-color:#2bb7a6;
+  }
+
+  .btn-confirm {
+    width:100%;
+    padding:14px;
+    margin-top:20px;
+    background:#e5e7eb;
+    color:#9ca3af;
+    border:none;
+    border-radius:10px;
+    font-weight:700;
+    cursor:not-allowed;
+  }
+
+  .btn-confirm.enabled {
+    background:#22c55e;
+    color:#fff;
+    cursor:pointer;
+  }
+
+  .modal-note {
+    font-size:0.85rem;
+    margin-top:12px;
+    padding:10px;
+    border-radius:10px;
+    background:#eff6ff;
+    color:#1d4ed8;
+  }
+  </style>
 
 </head>
 <body>
+  
   <div class="container">
 
     <!-- Header -->
@@ -202,6 +303,38 @@
 
   </div>
 
+  <!-- 📌 MODAL RESERVAR CITA -->
+  <div id="modalCita" class="modal-overlay">
+    <div class="modal-card" id="modalCitaContent">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <h2 style="margin:0;">Agendar Cita</h2>
+        <button id="closeModalCita" style="font-size:20px;border:none;background:transparent;cursor:pointer;">✖</button>
+      </div>
+
+      <h3 style="margin:16px 0 8px 0;">Selecciona un Dermatólogo</h3>
+      <div id="listaDoctores"></div>
+
+      <h3 style="margin-top:18px;">Fecha</h3>
+      <input type="date" id="citaFecha" style="width:100%;padding:10px;border-radius:8px;border:1px solid #ccc;">
+
+      <h3 style="margin-top:18px;">Horario</h3>
+      <div id="horasContainer" class="hour-grid">
+        <button class="hora-btn">09:00</button>
+        <button class="hora-btn">10:00</button>
+        <button class="hora-btn">11:00</button>
+        <button class="hora-btn">14:00</button>
+        <button class="hora-btn">15:00</button>
+        <button class="hora-btn">16:00</button>
+      </div>
+
+      <div class="modal-note">
+        Comisión SkinGuard: Como parte de nuestra red de clínicas asociadas, aplicamos una comisión del 12% por gestión de cita.
+      </div>
+
+      <button id="btnConfirmarCita" class="btn-confirm" disabled>Confirmar Cita</button>
+    </div>
+  </div>
+
   <script>
     /***** CONFIGURACIÓN *****/
     const SUPABASE_URL = "https://wstqsqgktlbdefugtpdv.supabase.co";
@@ -210,6 +343,7 @@
 
     /***** FLUJO PRINCIPAL *****/
     let user = null;
+    let selectedHora = null;
 
     (async function init(){
       if (localStorage.getItem("isLoggedIn") !== "true") {
@@ -228,11 +362,34 @@
       document.getElementById("nextCitaText").textContent = "Aún no has agendado una cita";
 
       await cargarUltimosRegistros(user.id, user.ultimo_resultado, user.ultima_confianza);
+      await cargarProximaCita(user.id);
       consultarUVLocal();
 
       document.getElementById("btnNewScan").addEventListener("click", () => window.location.href = "escaneo.html");
-      document.getElementById("btnReserve").addEventListener("click", () => alert("Módulo de citas aún no activo"));
+      document.getElementById("btnReserve").addEventListener("click", abrirModalCita);
       document.getElementById("btnDefLogout").addEventListener("click", () => { localStorage.clear(); window.location.href="login.html"; });
+
+      // listeners del modal
+      document.getElementById("closeModalCita").addEventListener("click", cerrarModalCita);
+      document.getElementById("modalCita").addEventListener("click", (e)=>{
+        if(e.target.id === "modalCita") cerrarModalCita();
+      });
+      document.getElementById("citaFecha").addEventListener("change", checkConfirmReady);
+      
+      // 🔥 Bloquear fechas pasadas (GMT-5 no afecta aquí)
+      document.getElementById("citaFecha").setAttribute("min", new Date().toISOString().split("T")[0]);
+      
+      // horas
+      document.querySelectorAll(".hora-btn").forEach(btn=>{
+        btn.addEventListener("click", ()=>{
+          document.querySelectorAll(".hora-btn").forEach(b=>b.classList.remove("selected"));
+          btn.classList.add("selected");
+          selectedHora = btn.textContent;
+          checkConfirmReady();
+        });
+      });
+
+      document.getElementById("btnConfirmarCita").addEventListener("click", confirmarCita);
     })();
 
     /***** ESCANEOS Y ACTIVIDAD *****/
@@ -273,8 +430,42 @@
         </div>
       `;
 
-      // Mostrar recomendaciones personalizadas
       mostrarRecomendaciones(resultado, confianza);
+    }
+
+    /***** Próxima cita desde Supabase *****/
+    async function cargarProximaCita(userId){
+      try{
+        const { data: cita, error } = await supabase
+          .from("citas")
+          .select("fecha,hora, doctores(nombre)")
+          .eq("usuario_id", userId)
+          .order("fecha", { ascending:true })
+          .order("hora", { ascending:true })
+          .limit(1)
+          .maybeSingle();
+
+        if(!error && cita){
+          // 🔥 Corrección para evitar desfase de un día
+          const [year, month, day] = cita.fecha.split("-");
+          const fechaObj = new Date(year, month - 1, day);
+          
+          const fechaStr = fechaObj.toLocaleDateString("es-PE");
+          document.getElementById("nextCitaText").textContent =
+            `${fechaStr} • ${cita.hora.slice(0,5)} con ${cita.doctores?.nombre || "dermatólogo"}`;
+        }
+
+        const { count } = await supabase
+          .from("citas")
+          .select("id", { count: "exact", head: true })
+          .eq("usuario_id", userId);
+
+        if(typeof count === "number"){
+          document.getElementById("countCitas").textContent = count;
+        }
+      }catch(e){
+        console.warn("No se pudo cargar próxima cita", e);
+      }
     }
 
     /***** 🧠 Recomendaciones según resultado *****/
@@ -316,6 +507,132 @@
       card.style.display = "block";
       card.style.background = colorFondo;
       content.innerHTML = mensaje;
+    }
+
+    /***** MODAL DE CITA *****/
+    async function abrirModalCita(){
+      const modal = document.getElementById("modalCita");
+      const lista = document.getElementById("listaDoctores");
+      lista.innerHTML = "Cargando doctores...";
+
+      modal.style.display = "flex";
+
+      const { data: doctores, error } = await supabase
+        .from("doctores")
+        .select("id,nombre,especialidad,tarifa,clinica_id, clinicas(nombre)");
+
+      if(error){
+        lista.innerHTML = "No se pudieron cargar los doctores.";
+        console.error(error);
+        return;
+      }
+
+      lista.innerHTML = "";
+      doctores.forEach(doc=>{
+        const tarifaTexto = doc.tarifa != null ? `S/.${doc.tarifa}` : "S/.--";
+        lista.innerHTML += `
+          <div class="doctorItem" 
+               data-id="${doc.id}" 
+               data-clinica="${doc.clinica_id}" 
+               data-tarifa="${doc.tarifa || 0}"
+               data-nombre="${doc.nombre}">
+            <div class="doctorItem-left">
+              <strong>${doc.nombre}</strong>
+              <span class="muted">${doc.especialidad}</span>
+              <span class="muted">${doc.clinicas?.nombre || ""}</span>
+            </div>
+            <div class="doctorPrice">${tarifaTexto}</div>
+          </div>
+        `;
+      });
+
+      // listeners de selección de doctor
+      document.querySelectorAll(".doctorItem").forEach(item=>{
+        item.addEventListener("click", ()=>{
+          document.querySelectorAll(".doctorItem").forEach(x=>x.classList.remove("selected"));
+          item.classList.add("selected");
+          checkConfirmReady();
+        });
+      });
+    }
+
+    function cerrarModalCita(){
+      document.getElementById("modalCita").style.display = "none";
+      document.getElementById("btnConfirmarCita").disabled = true;
+      document.getElementById("btnConfirmarCita").classList.remove("enabled");
+      document.getElementById("citaFecha").value = "";
+      selectedHora = null;
+      document.querySelectorAll(".hora-btn").forEach(b=>b.classList.remove("selected"));
+    }
+
+    function checkConfirmReady(){
+      const doctorSel = document.querySelector(".doctorItem.selected");
+      const fecha = document.getElementById("citaFecha").value;
+      const btn = document.getElementById("btnConfirmarCita");
+
+      if(doctorSel && fecha && selectedHora){
+        btn.disabled = false;
+        btn.classList.add("enabled");
+      }else{
+        btn.disabled = true;
+        btn.classList.remove("enabled");
+      }
+    }
+
+    async function confirmarCita(){
+      const doctorDiv = document.querySelector(".doctorItem.selected");
+      const fecha = document.getElementById("citaFecha").value;
+      if(!doctorDiv || !fecha || !selectedHora) return;
+
+      const doctorId = doctorDiv.dataset.id;
+      const clinicaId = doctorDiv.dataset.clinica;
+      const doctorNombre = doctorDiv.dataset.nombre;
+      const tarifa = Number(doctorDiv.dataset.tarifa || 0);
+      const limaTime = new Date(new Date().getTime() - 5 * 60 * 60 * 1000).toISOString();
+
+      const { error } = await supabase.from("citas").insert({
+        usuario_id: user.id,
+        doctor_id: doctorId,
+        clinica_id: clinicaId,
+        fecha: fecha,
+        hora: selectedHora,
+        estado: "pendiente",
+        created_at: limaTime
+      });
+
+      if(error){
+        alert("Ocurrió un error al registrar la cita.");
+        console.error(error);
+        return;
+      }
+
+      // actualizar métricas en dashboard
+      await cargarProximaCita(user.id);
+
+      // vista de confirmación sencilla
+      // ✅ Corrección definitiva para evitar desfase de un día
+      const [y, m, d] = fecha.split("-");
+      const fechaObj = new Date(Number(y), Number(m) - 1, Number(d));
+      const fechaTexto = fechaObj.toLocaleDateString("es-PE");
+
+      const modalContent = document.getElementById("modalCitaContent");
+      modalContent.innerHTML = `
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+          <h2 style="margin:0;">Agendar Cita</h2>
+          <button id="closeModalCitaConfirm" style="font-size:20px;border:none;background:transparent;cursor:pointer;">✖</button>
+        </div>
+        <div style="text-align:center;padding:30px 10px 10px;">
+          <div style="width:70px;height:70px;border-radius:999px;background:#dcfce7;margin:0 auto 18px;display:flex;align-items:center;justify-content:center;font-size:34px;">✔</div>
+          <h3 style="margin-bottom:8px;">¡Cita Confirmada!</h3>
+          <p class="muted">Tu cita con <b>${doctorNombre}</b> ha sido agendada<br>
+          para el <b>${fechaTexto}</b> a las <b>${selectedHora}</b>.</p>
+          <p class="muted" style="margin-top:12px;">Recibirás un recordatorio 24 horas antes.</p>
+          <button id="btnCerrarConfirm" class="btn-confirm enabled" style="margin-top:24px;">Cerrar</button>
+        </div>
+      `;
+
+      document.getElementById("closeModalCitaConfirm").onclick = cerrarModalCita;
+      document.getElementById("btnCerrarConfirm").onclick = cerrarModalCita;
     }
 
     /***** ÍNDICE UV *****/

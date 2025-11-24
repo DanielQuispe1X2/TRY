@@ -82,6 +82,31 @@
     .image-card img { width: 100%; border-radius: 8px; object-fit: cover; }
 
     @media (max-width: 720px) { .image-result-grid { grid-template-columns: 1fr; } .info-grid { grid-template-columns: 1fr; } }
+
+    /* === Botones de horario (estilo unificado) === */
+    .time-btn {
+      padding: 10px 20px;
+      border-radius: 8px;
+      background: #fff;
+      border: 1px solid #d1d5db;
+      cursor: pointer;
+      transition: all .2s;
+      font-weight: 600;
+      color: #374151;
+      text-align: center;
+      min-width: 90px;
+    }
+
+    .time-btn:hover {
+      background: #e5e7eb;
+    }
+
+    .time-btn.selected {
+      background: #4f46e5;
+      color: #fff;
+      border-color: #4f46e5;
+    }
+
   </style>
 </head>
 
@@ -166,7 +191,10 @@
 
 
       if (!user) return;
-
+      // 🔹 GUARDAR NOMBRE EN LOCALSTORAGE PARA EL PDF
+      if (user.nombre) {
+        localStorage.setItem("nombreUsuario", user.nombre);
+      }
       // 🔹 Obtener último escaneo con la columna 'fecha'
       const { data: scan } = await supabase
         .from("escaneos")
@@ -200,7 +228,7 @@
 
       if (result.toLowerCase() === "maligno") {
         resultCard.classList.replace("benigno", "maligno");
-        resultTitle.textContent = "⚠️ Posible Melanoma";
+        resultTitle.textContent = "Posible Melanoma";
         resultDesc.textContent = "El análisis sugiere características compatibles con melanoma, una lesión potencialmente maligna. Es fundamental realizar una evaluación médica prioritaria con un dermatólogo especializado para confirmar el diagnóstico mediante examen clínico y biopsia histológica, ya que la precisión del diagnóstico definitivo solo puede lograrse con análisis médico presencial.";
         recList.innerHTML = `
           <li>Agenda una cita dermatológica de forma inmediata.</li>
@@ -210,7 +238,7 @@
         `;
       } else {
         resultCard.classList.replace("maligno", "benigno");
-        resultTitle.textContent = "✅ Benigno";
+        resultTitle.textContent = "Benigno";
         resultDesc.textContent = "El análisis indica que la lesión presenta características benignas y no se detectaron signos preocupantes de malignidad. Según los patrones visuales y morfológicos analizados, la probabilidad de melanoma es muy baja, por lo que no se requiere una intervención inmediata. Sin embargo, se recomienda mantener vigilancia preventiva: observe la evolución de la lesión, evite la exposición solar excesiva y realice autoexámenes dermatológicos mensuales siguiendo la regla ABCDE (Asimetría, Bordes, Color, Diámetro, Evolución).";
         recList.innerHTML = `
           <li>Realiza seguimiento fotográfico cada 3 meses.</li>
@@ -235,7 +263,7 @@
        ====================================================== */
     function textLine(pdf, text, x, y) { pdf.text(text, x, y); return y + 6; }
 
-    async function generarPDFNativo() {
+async function generarPDFNativo() {
   const { jsPDF } = window.jspdf;
   const pdf = new jsPDF("p", "mm", "a4");
 
@@ -251,7 +279,6 @@
 
   // ================= ENCABEZADO =================
   try {
-    // Si tienes un logo, reemplaza el nombre del archivo
     const logoUrl = "logo_skinguard.png";
     const img = await fetch(logoUrl);
     const blob = await img.blob();
@@ -264,7 +291,7 @@
 
   pdf.setFont("helvetica", "bold");
   pdf.setFontSize(16);
-  pdf.setTextColor(azulMarino[0], azulMarino[1], azulMarino[2]);
+  pdf.setTextColor(...azulMarino);
   pdf.text("INFORME CLÍNICO DE ANÁLISIS DERMATOLÓGICO", pageW / 2, 20, { align: "center" });
 
   pdf.setFontSize(10);
@@ -273,30 +300,27 @@
 
   y = 38;
 
-  // Línea separadora
-  pdf.setDrawColor(azulMarino[0], azulMarino[1], azulMarino[2]);
+  pdf.setDrawColor(...azulMarino);
   pdf.setLineWidth(0.3);
   pdf.line(margin, y, pageW - margin, y);
   y += 8;
 
   // ================= DATOS DEL PACIENTE =================
-  // Traer el nombre guardado previamente en localStorage
   const nombreUsuario = localStorage.getItem("nombreUsuario") || "Usuario";
   const fecha = document.getElementById("analysisDate")?.textContent || "No registrada";
 
   pdf.setFont("helvetica", "bold");
-  pdf.setTextColor(azulMarino[0], azulMarino[1], azulMarino[2]);
+  pdf.setTextColor(...azulMarino);
   pdf.text("Datos del Paciente", margin, y);
   y += 6;
 
   pdf.setFont("helvetica", "normal");
-  pdf.setTextColor(grisTexto[0], grisTexto[1], grisTexto[2]);
+  pdf.setTextColor(...grisTexto);
   pdf.setFontSize(11);
   pdf.text(`Paciente: ${nombreUsuario}`, margin, y);
   y += 6;
   pdf.text(`Fecha y hora de análisis: ${fecha}`, margin, y);
   y += 10;
-
 
   // ================= RESULTADO PRINCIPAL =================
   const titulo = document.getElementById("resultTitle")?.textContent || "";
@@ -313,7 +337,7 @@
   pdf.text(titulo, margin + 6, y + 10);
 
   pdf.setFont("helvetica", "normal");
-  pdf.setTextColor(grisTexto[0], grisTexto[1], grisTexto[2]);
+  pdf.setTextColor(...grisTexto);
   pdf.text(confianza, margin + 6, y + 18);
 
   y += 35;
@@ -321,42 +345,35 @@
   // ================= DETALLES DEL ANÁLISIS =================
   pdf.setFont("helvetica", "bold");
   pdf.setFontSize(12);
-  pdf.setTextColor(azulMarino[0], azulMarino[1], azulMarino[2]);
+  pdf.setTextColor(...azulMarino);
   pdf.text("Detalles Técnicos del Modelo", margin, y);
   y += 6;
 
   pdf.setFont("helvetica", "normal");
   pdf.setFontSize(11);
-  pdf.setTextColor(grisTexto[0], grisTexto[1], grisTexto[2]);
+  pdf.setTextColor(...grisTexto);
+
   const detalles = [
     "Modelo utilizado: CNN + YOLOv8",
     "Precisión del modelo: 91.06%",
     "AUC: 0.9453",
     `Fecha y hora de análisis: ${fecha}`,
   ];
+
   detalles.forEach(t => { pdf.text(t, margin + 2, y); y += 6; });
 
-  y += 4;
-
-  // Imagen si existe
-  const imgDataUrl = localStorage.getItem("lastAnalyzedImage");
-  if (imgDataUrl) {
-    try {
-      pdf.addImage(imgDataUrl, "PNG", pageW - margin - 45, y - 20, 40, 40);
-    } catch {}
-  }
-  y += 8;
+  y += 10;
 
   // ================= RECOMENDACIONES =================
   pdf.setFont("helvetica", "bold");
   pdf.setFontSize(12);
-  pdf.setTextColor(azulMarino[0], azulMarino[1], azulMarino[2]);
+  pdf.setTextColor(...azulMarino);
   pdf.text("Recomendaciones Clínicas", margin, y);
   y += 6;
 
   pdf.setFont("helvetica", "normal");
   pdf.setFontSize(11);
-  pdf.setTextColor(grisTexto[0], grisTexto[1], grisTexto[2]);
+  pdf.setTextColor(...grisTexto);
 
   const recs = Array.from(document.querySelectorAll("#recList li")).map(li => li.textContent.trim());
   recs.forEach(r => {
@@ -365,33 +382,68 @@
     y += texto.length * 5;
   });
 
-  y += 6;
+  y += 12;
 
   // ================= ADVERTENCIA =================
-  pdf.setDrawColor(250, 204, 21);
-  pdf.setFillColor(255, 251, 234);
-  pdf.roundedRect(margin, y, pageW - margin * 2, 22, 2, 2, "FD");
-  pdf.setTextColor(146, 64, 14);
-  pdf.setFont("helvetica", "bold");
-  pdf.text("Importante:", margin + 4, y + 7);
-  pdf.setFont("helvetica", "normal");
-  pdf.setFontSize(10);
-  const aviso = "Este informe no sustituye una evaluación médica profesional. Se recomienda acudir a un dermatólogo certificado para diagnóstico definitivo.";
-  const avisoTxt = pdf.splitTextToSize(aviso, pageW - margin * 2 - 8);
-  pdf.text(avisoTxt, margin + 4, y + 12);
-  y += 28;
+pdf.setDrawColor(250, 204, 21);
+pdf.setFillColor(255, 251, 234);
+pdf.roundedRect(margin, y, pageW - margin * 2, 22, 2, 2, "FD");
+
+pdf.setTextColor(146, 64, 14);
+pdf.setFont("helvetica", "bold");
+pdf.text("Importante:", margin + 4, y + 7);
+
+pdf.setFont("helvetica", "normal");
+pdf.setFontSize(10);
+const aviso = "Este informe no sustituye una evaluación médica profesional. Se recomienda acudir a un dermatólogo certificado para diagnóstico definitivo.";
+const avisoTxt = pdf.splitTextToSize(aviso, pageW - margin * 2 - 8);
+pdf.text(avisoTxt, margin + 4, y + 12);
+
+y += 30;
+
+
+// ================= IMAGEN FINAL CON MARCO =================
+const imgDataUrl = localStorage.getItem("lastAnalyzedImage");
+
+if (imgDataUrl) {
+  const imgWidth = 60;
+  const imgHeight = 60;
+  const padding = 4;
+
+  const boxX = (pageW - (imgWidth + padding * 2)) / 2;
+
+  pdf.setDrawColor(180, 180, 180);
+  pdf.setFillColor(245, 245, 245);
+
+  // Marco centrado
+  pdf.roundedRect(boxX, y, imgWidth + padding * 2, imgHeight + padding * 2, 3, 3, "FD");
+
+  // Imagen centrada dentro del marco
+  pdf.addImage(
+    imgDataUrl,
+    "PNG",
+    boxX + padding,
+    y + padding,
+    imgWidth,
+    imgHeight
+  );
+
+  y += imgHeight + padding * 2 + 8;
+}
+
 
   // ================= FIRMA Y PIE =================
   pdf.setFont("helvetica", "italic");
-  pdf.setFontSize(10);
-  pdf.setTextColor(100);
-  pdf.text("__________________________________", pageW / 2, y, { align: "center" });
-  pdf.text("Revisión automática asistida por IA – SkinGuard AI", pageW / 2, y + 6, { align: "center" });
-
   pdf.setFontSize(9);
+  pdf.setTextColor(100);
+
+  pdf.text("Revisión automática asistida por IA – SkinGuard AI", pageW / 2, 284, { align: "center" });
+  pdf.text("__________________________________", pageW / 2, 286, { align: "center" });
   pdf.text("SkinGuard 2025 | Plataforma de Diagnóstico Dermatológico Inteligente", pageW / 2, 290, { align: "center" });
 
   pdf.save(`SkinGuard_Informe_${new Date().toISOString().slice(0, 10)}.pdf`);
+
+
 }
 
   // 🟢 Enganchar botón de descarga PDF
@@ -408,6 +460,237 @@
       });
     }
   });
+
+
+      /* ==================================================================================
+      🔵 FUNCIONALIDAD DE RESERVAR CITA DESDE RESULTADO.HTML 
+      — Usa el MISMO flujo del dashboard (definitivo.html)
+      ================================================================================== */
+
+    const SUPABASE_URL = "https://wstqsqgktlbdefugtpdv.supabase.co";
+    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndzdHFzcWdrdGxiZGVmdWd0cGR2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg2ODUyNTQsImV4cCI6MjA3NDI2MTI1NH0.ArkLINOc0adJf8bFvf6W-HC-_kGucp15Lyw28ivmc1w";
+
+    const supabaseRes = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    let userDataResultado = null;
+    let selectedHoraResultado = null;
+    let selectedDoctorResultado = null;
+
+    /* ==================================================================================
+      🔵 1) Cargar usuario actual
+      ================================================================================== */
+    document.addEventListener("DOMContentLoaded", async () => {
+        const userEmail = localStorage.getItem("userEmail");
+        if (!userEmail) return;
+
+        const { data } = await supabaseRes
+            .from("usuarios")
+            .select("id,nombre")
+            .eq("email", userEmail)
+            .maybeSingle();
+
+        userDataResultado = data;
+    });
+
+    /* ==================================================================================
+      🔵 2) Escuchar clic en el botón "Agendar Cita Dermatológica"
+      ================================================================================== */
+
+    document.querySelector(".btn-primary").addEventListener("click", abrirModalDesdeResultado);
+
+    async function abrirModalDesdeResultado() {
+        // Cargar doctores
+        const { data: doctores } = await supabaseRes
+            .from("doctores")
+            .select("id, nombre, especialidad, tarifa, clinica_id, clinicas(nombre)");
+
+        if (!doctores) {
+            alert("No hay doctores registrados.");
+            return;
+        }
+
+        // Mostrar modal construido dinámicamente
+        construirModalResultado(doctores);
+    }
+
+    /* ==================================================================================
+      🔵 3) Construir modal dinámico para reservar
+      ================================================================================== */
+
+    function construirModalResultado(doctores) {
+        const modal = document.createElement("div");
+        modal.id = "modal-cita-resultado";
+        modal.style.cssText = `
+            position:fixed;top:0;left:0;right:0;bottom:0;
+            background:rgba(0,0,0,.4);
+            display:flex;justify-content:center;align-items:flex-start;
+            padding-top:40px;z-index:99999;
+        `;
+
+        modal.innerHTML = `
+          <div style="
+            width:380px;background:#fff;border-radius:12px;padding:24px;
+            max-height:90vh;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,.15);
+          ">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <h2 style="margin:0;">Agendar Cita</h2>
+              <button id="cerrarModalResultado" style="border:none;background:transparent;font-size:22px;cursor:pointer;">✖</button>
+            </div>
+
+            <h3 style="margin-top:16px;">Selecciona un Dermatólogo</h3>
+            <div id="listaDocsResultado"></div>
+
+            <h3 style="margin-top:18px;">Fecha</h3>
+            <input type="date" id="fechaResultado" style="width:100%;padding:10px;border-radius:8px;border:1px solid #ccc;">
+
+            <h3 style="margin-top:18px;">Horario</h3>
+            <div id="horasResultado" style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;">
+              <button class="time-btn">09:00</button>
+              <button class="time-btn">10:00</button>
+              <button class="time-btn">11:00</button>
+              <button class="time-btn">14:00</button>
+              <button class="time-btn">15:00</button>
+              <button class="time-btn">16:00</button>
+            </div>
+
+            <button id="confirmarCitaResultado" disabled
+            style="width:100%;padding:14px;border:none;border-radius:10px;
+            margin-top:20px;background:#ccc;color:#666;font-weight:700;">
+            Confirmar Cita
+            </button>
+          </div>
+        `;
+
+        document.body.appendChild(modal);
+
+        // Listeners
+        document.getElementById("cerrarModalResultado").onclick = () => modal.remove();
+
+        // Render doctores
+        const lista = document.getElementById("listaDocsResultado");
+        doctores.forEach(doc => {
+            const div = document.createElement("div");
+            div.className = "doc-item-res";
+            div.dataset.id = doc.id;
+            div.dataset.clinica = doc.clinica_id;
+            div.dataset.nombre = doc.nombre;
+            div.style.cssText = `
+                border:1px solid #ddd;border-radius:10px;padding:12px;margin-bottom:10px;
+                cursor:pointer;display:flex;justify-content:space-between;
+            `;
+            div.innerHTML = `
+                <div>
+                  <b>${doc.nombre}</b><br>
+                  <span style="color:#555;">${doc.especialidad}</span><br>
+                  <span style="color:#777;">${doc.clinicas?.nombre}</span>
+                </div>
+                <div style="color:#059669;font-weight:700;">S/.${doc.tarifa}</div>
+            `;
+
+            div.onclick = () => seleccionarDoctorResultado(div);
+            lista.appendChild(div);
+        });
+
+        // Horas
+        document.querySelectorAll(".time-btn").forEach(btn => {
+            btn.onclick = () => seleccionarHoraResultado(btn);
+        });
+
+        document.getElementById("fechaResultado").onchange = validarConfirmacionResultado;
+        
+        document.getElementById("fechaResultado").setAttribute("min", new Date().toISOString().split("T")[0]);
+    }
+
+    /* ==================================================================================
+      🔵 4) Seleccionar doctor
+      ================================================================================== */
+    function seleccionarDoctorResultado(div) {
+        document.querySelectorAll(".doc-item-res").forEach(d => d.style.background = "#fff");
+        div.style.background = "#ecfdf3";
+
+        selectedDoctorResultado = {
+            id: div.dataset.id,
+            clinica: div.dataset.clinica,
+            nombre: div.dataset.nombre
+        };
+
+        validarConfirmacionResultado();
+    }
+
+    /* ==================================================================================
+      🔵 5) Seleccionar hora
+      ================================================================================== */
+    function seleccionarHoraResultado(btn) {
+        document.querySelectorAll(".time-btn")
+            .forEach(b => { b.style.background = "#f3f4f6"; b.style.color = "#000"; });
+
+        btn.style.background = "#22c55e";
+        btn.style.color = "#fff";
+        selectedHoraResultado = btn.textContent;
+
+        validarConfirmacionResultado();
+    }
+
+    /* ==================================================================================
+      🔵 6) Verificar habilitación del botón Confirmar
+      ================================================================================== */
+    function validarConfirmacionResultado() {
+        const fecha = document.getElementById("fechaResultado").value;
+        const btn = document.getElementById("confirmarCitaResultado");
+
+        if (selectedDoctorResultado && selectedHoraResultado && fecha) {
+            btn.disabled = false;
+            btn.style.background = "#22c55e";
+            btn.style.color = "#fff";
+            btn.onclick = guardarCitaResultado;
+        }
+    }
+
+    /* ==================================================================================
+      🔵 7) Guardar cita en Supabase (igual que dashboard)
+      ================================================================================== */
+    async function guardarCitaResultado() {
+        const fecha = document.getElementById("fechaResultado").value;
+        const limaTime = new Date(new Date().getTime() - 5 * 60 * 60 * 1000).toISOString();
+
+        await supabaseRes.from("citas").insert({
+            usuario_id: userDataResultado.id,
+            doctor_id: selectedDoctorResultado.id,
+            clinica_id: selectedDoctorResultado.clinica,
+            fecha: fecha,
+            hora: selectedHoraResultado,
+            estado: "pendiente",
+            created_at: limaTime
+        });
+
+        mostrarConfirmacionResultado();
+    }
+
+    /* ==================================================================================
+      🔵 8) Mostrar pantalla de Cita Confirmada (igual dashboard)
+      ================================================================================== */
+    function mostrarConfirmacionResultado() {
+        const modal = document.getElementById("modal-cita-resultado");
+        modal.innerHTML = `
+          <div style="background:#fff;padding:30px;border-radius:14px;text-align:center;
+                      width:380px;margin-top:60px;">
+            <div style="width:70px;height:70px;border-radius:50%;
+                background:#dcfce7;margin:0 auto 20px;
+                display:flex;align-items:center;justify-content:center;font-size:34px;">
+                ✔
+            </div>
+            <h2>¡Cita Confirmada!</h2>
+            <p class="muted">
+              Tu cita con <b>${selectedDoctorResultado.nombre}</b> ha sido agendada.<br>
+              Serás redirigido al dashboard en 5 segundos...
+            </p>
+          </div>
+        `;
+
+        setTimeout(() => {
+            window.location.href = "definitivo.html";
+        }, 5000);
+    }
 
   </script>
 </body>
